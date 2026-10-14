@@ -1,50 +1,61 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — Defensive Pentest Scanner{% endblock %}
 {% block content %}
-<h1>Dashboard</h1>
-<p class="muted">{{ target_count }} target(s) on file, {{ scannable_count }} currently scannable.</p>
+<div class="page-header">
+    <div>
+        <div class="eyebrow">Overview</div>
+        <h1>Dashboard</h1>
+        <div class="muted">Security posture across your verified targets.</div>
+    </div>
+    <a class="btn" href="/targets">Manage targets →</a>
+</div>
 
-<div class="banner">
-    Scans may only be run against verified, allow-listed targets — self-owned infrastructure with ownership
-    verification on file, or third-party infrastructure with a current signed authorization document. See
-    <a href="/audit">the audit log</a> for a full history.
+<div class="kpis">
+    <div class="kpi"><div class="num">{{ target_count }}</div><div class="label">Targets on file</div></div>
+    <div class="kpi"><div class="num" style="color:var(--ok)">{{ scannable_count }}</div><div class="label">Currently scannable</div></div>
+    <div class="kpi"><div class="num">{{ recent_scans|length }}</div><div class="label">Recent scans</div></div>
 </div>
 
 <div class="card">
-    <h2 style="margin-top:0">Findings across recent completed scans</h2>
+    <div class="card-title">Findings across recent completed scans</div>
     {% if severity_counts %}
-    <div class="row">
+    <div class="stat-grid">
         {% for sev in ["critical", "high", "medium", "low", "info"] %}
-        <div>
-            <span class="badge {{ sev }}">{{ sev }}</span>
-            <div style="font-size:24px; margin-top:6px;">{{ severity_counts.get(sev, 0) }}</div>
+        {% set n = severity_counts.get(sev, 0) %}
+        <div class="stat {{ sev }} {{ 'zero' if n == 0 else '' }}">
+            <div class="num">{{ n }}</div>
+            <div class="label">{{ sev }}</div>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <p class="muted">No completed scans yet.</p>
+    <div class="empty">No completed scans yet. Verify a target and launch a scan to see findings here.</div>
     {% endif %}
 </div>
 
 <div class="card">
-    <h2 style="margin-top:0">Recent scans</h2>
+    <div class="card-title">Recent scans</div>
     {% if recent_scans %}
     <table>
         <tr><th>Target</th><th>Modules</th><th>Status</th><th>Started</th><th></th></tr>
         {% for scan in recent_scans %}
         <tr>
-            <td>{{ scan.target.name }}</td>
-            <td>{{ scan.modules | join(", ") }}</td>
+            <td><strong>{{ scan.target.name }}</strong><div class="muted mono">{{ scan.target.value }}</div></td>
+            <td>{% for m in scan.modules %}<span class="pill">{{ m }}</span> {% endfor %}</td>
             <td><span class="badge {{ scan.status.value }}">{{ scan.status.value }}</span></td>
             <td class="muted">{{ scan.started_at.strftime("%Y-%m-%d %H:%M") if scan.started_at else "—" }}</td>
-            <td><a class="btn secondary" href="/scans/{{ scan.id }}">View</a></td>
+            <td style="text-align:right"><a class="btn secondary small" href="/scans/{{ scan.id }}">View report</a></td>
         </tr>
         {% endfor %}
     </table>
     {% else %}
-    <p class="muted">No scans have been run yet.</p>
+    <div class="empty">No scans have been run yet.</div>
     {% endif %}
 </div>
 
-<a class="btn" href="/targets">Manage targets →</a>
+<div class="banner">
+    <span>Scans may only be run against verified, allow-listed targets — self-owned infrastructure with ownership
+    verification on file, or third-party infrastructure with a current signed authorization document. Every action is
+    recorded in the <a href="/audit">audit log</a>.</span>
+</div>
 {% endblock %}

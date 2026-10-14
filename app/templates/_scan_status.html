@@ -1,11 +1,13 @@
 {% if scan.status.value in ("pending", "running") %}
 <div hx-get="/scans/{{ scan.id }}/status" hx-trigger="load delay:2s" hx-swap="outerHTML">
     <span class="badge {{ scan.status.value }}">{{ scan.status.value }}</span>
-    <span class="muted">Scanning in progress — this refreshes automatically.</span>
+    <span class="spinner" style="margin:0 6px 0 10px"></span>
+    <span class="muted">Scanning in progress — this page refreshes automatically when it finishes.</span>
 </div>
 {% else %}
 <div>
     <span class="badge {{ scan.status.value }}">{{ scan.status.value }}</span>
+    {% if scan.completed_at %}<span class="muted" style="margin-left:8px">finished {{ scan.completed_at.strftime("%Y-%m-%d %H:%M") }} UTC</span>{% endif %}
     {% if scan.error_message %}<div class="banner {{ 'warn' if scan.status.value == 'completed' else 'bad' }}" style="margin-top:10px">{{ scan.error_message }}</div>{% endif %}
 </div>
 <script>

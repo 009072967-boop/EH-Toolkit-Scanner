@@ -1,30 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Targets — Defensive Pentest Scanner{% endblock %}
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:center;">
-    <h1>Targets</h1>
+<div class="page-header">
+    <div>
+        <div class="eyebrow">Allow-list</div>
+        <h1>Targets</h1>
+        <div class="muted">Only targets that are verified, consented, and (for third parties) authorized can be scanned.</div>
+    </div>
     <a class="btn" href="/targets/new">+ Add target</a>
 </div>
 
 {% if targets %}
+<div class="table-wrap">
 <table>
-    <tr><th>Name</th><th>Type</th><th>Value</th><th>Tier</th><th>Verification</th><th>Scannable</th><th></th></tr>
+    <tr><th>Name</th><th>Address</th><th>Tier</th><th>Verification</th><th>Scannable</th><th></th></tr>
     {% for t in targets %}
+    {% set allowed, reason = t.is_scannable() %}
     <tr>
-        <td>{{ t.name }}</td>
-        <td>{{ t.target_type.value }}</td>
+        <td><strong>{{ t.name }}</strong><div class="muted">{{ t.target_type.value | replace("_", " ") }}</div></td>
         <td><code>{{ t.value }}</code></td>
-        <td>{{ "Third-party" if t.tier.value == "third_party" else "Self-owned" }}</td>
+        <td class="subtle">{{ "Third-party · Tier 2" if t.tier.value == "third_party" else "Self-owned · Tier 1" }}</td>
         <td><span class="badge {{ t.verification_status.value }}">{{ t.verification_status.value }}</span></td>
-        <td>
-            {% set allowed, reason = t.is_scannable() %}
-            {% if allowed %}<span class="badge active">yes</span>{% else %}<span class="badge pending">no</span>{% endif %}
-        </td>
-        <td><a class="btn secondary" href="/targets/{{ t.id }}">Open</a></td>
+        <td title="{{ reason }}">{% if allowed %}<span class="badge yes">ready</span>{% else %}<span class="badge no">blocked</span>{% endif %}</td>
+        <td style="text-align:right"><a class="btn secondary small" href="/targets/{{ t.id }}">Open</a></td>
     </tr>
     {% endfor %}
 </table>
+</div>
 {% else %}
-<p class="muted">No targets yet. Add one to get started.</p>
+<div class="card empty">No targets yet. <a href="/targets/new">Add one</a> to get started.</div>
 {% endif %}
 {% endblock %}

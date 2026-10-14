@@ -1,9 +1,18 @@
 {% extends "base.html" %}
 {% block title %}{{ target.name }} — Defensive Pentest Scanner{% endblock %}
 {% block content %}
-<h1>{{ target.name }}</h1>
-<p class="muted"><code>{{ target.value }}</code> · {{ target.target_type.value }} ·
-    {{ "Third-party (Tier 2)" if target.tier.value == "third_party" else "Self-owned (Tier 1)" }}</p>
+<div class="page-header">
+    <div>
+        <div class="eyebrow">Target</div>
+        <h1>{{ target.name }}</h1>
+        <div class="meta">
+            <code>{{ target.value }}</code>
+            <span class="pill">{{ target.target_type.value | replace("_", " ") }}</span>
+            <span class="pill">{{ "Third-party · Tier 2" if target.tier.value == "third_party" else "Self-owned · Tier 1" }}</span>
+            {% if allowed %}<span class="badge yes">ready to scan</span>{% else %}<span class="badge no">blocked</span>{% endif %}
+        </div>
+    </div>
+</div>
 
 {% if message %}<div class="banner ok">{{ message }}</div>{% endif %}
 {% if error %}<div class="banner bad">{{ error }}</div>{% endif %}
@@ -14,7 +23,7 @@
 <div class="banner warn">Not scannable yet: {{ block_reason }}</div>
 {% endif %}
 
-<h2>1. Ownership verification</h2>
+<h2><span class="step">1</span>Ownership verification</h2>
 <div class="card">
     <p>Status: <span class="badge {{ target.verification_status.value }}">{{ target.verification_status.value }}</span>
         {% if target.verified_at %}<span class="muted">on {{ target.verified_at.strftime("%Y-%m-%d %H:%M UTC") }} via {{ target.verification_method.value }}</span>{% endif %}
@@ -51,7 +60,7 @@
     {% endif %}
 </div>
 
-<h2>2. Consent / legal attestation</h2>
+<h2><span class="step">2</span>Consent / legal attestation</h2>
 <div class="card">
     {% if target.has_consent %}
     <p><span class="badge verified">recorded</span>
@@ -73,7 +82,7 @@
 </div>
 
 {% if target.tier.value == "third_party" %}
-<h2>3. Signed authorization document (Tier 2, required)</h2>
+<h2><span class="step">3</span>Signed authorization document <span class="muted">(Tier 2, required)</span></h2>
 <div class="card">
     {% set active = target.active_authorization() %}
     {% if active %}
@@ -120,7 +129,7 @@
 </div>
 {% endif %}
 
-<h2>{{ "4" if target.tier.value == "third_party" else "3" }}. Launch a scan</h2>
+<h2><span class="step">{{ "4" if target.tier.value == "third_party" else "3" }}</span>Launch a scan</h2>
 <div class="card">
     <div class="banner {{ 'ok' if allowed else 'bad' }}">
         Scans may only be run against verified, authorized targets. This target is currently
@@ -131,13 +140,18 @@
     <form method="post" action="/targets/{{ target.id }}/scans" enctype="multipart/form-data">
         <div class="field">
             <label>Modules</label>
-            {% if target.target_type.value in ("ip", "ip_range", "domain", "hostname") %}
-            <div class="checkbox-row"><input type="checkbox" name="modules" value="network" id="m-net"><label for="m-net" style="margin:0">Network / port scan (nmap)</label></div>
-            {% endif %}
-            {% if target.target_type.value in ("domain", "hostname") %}
-            <div class="checkbox-row"><input type="checkbox" name="modules" value="webapp" id="m-web"><label for="m-web" style="margin:0">Web application scan</label></div>
-            {% endif %}
-            <div class="checkbox-row"><input type="checkbox" name="modules" value="dependency" id="m-dep"><label for="m-dep" style="margin:0">Dependency / CVE scan (upload manifest below)</label></div>
+            <div class="option-tiles">
+                {% if target.target_type.value in ("ip", "ip_range", "domain", "hostname") %}
+                <label class="option-tile" for="m-net"><input type="checkbox" name="modules" value="network" id="m-net" checked>
+                    <span><strong>Network / ports</strong><span>nmap service, version, safe-script and known-CVE checks</span></span></label>
+                {% endif %}
+                {% if target.target_type.value in ("domain", "hostname") %}
+                <label class="option-tile" for="m-web"><input type="checkbox" name="modules" value="webapp" id="m-web">
+                    <span><strong>Web application</strong><span>Crawler with headers, exposed files, TLS, XSS/SQLi indicators</span></span></label>
+                {% endif %}
+                <label class="option-tile" for="m-dep"><input type="checkbox" name="modules" value="dependency" id="m-dep">
+                    <span><strong>Dependencies</strong><span>Upload a manifest below; checked against OSV.dev</span></span></label>
+            </div>
         </div>
         <div class="field">
             <label>Dependency manifest (only used if the module above is selected)</label>
@@ -164,10 +178,10 @@
         <tr><th>Modules</th><th>Status</th><th>Started</th><th></th></tr>
         {% for scan in target.scan_runs|sort(attribute="created_at", reverse=True) %}
         <tr>
-            <td>{{ scan.modules | join(", ") }}</td>
+            <td>{% for m in scan.modules %}<span class="pill">{{ m }}</span> {% endfor %}</td>
             <td><span class="badge {{ scan.status.value }}">{{ scan.status.value }}</span></td>
             <td class="muted">{{ scan.started_at.strftime("%Y-%m-%d %H:%M") if scan.started_at else "queued" }}</td>
-            <td><a class="btn secondary" href="/scans/{{ scan.id }}">View</a></td>
+            <td style="text-align:right"><a class="btn secondary small" href="/scans/{{ scan.id }}">View report</a></td>
         </tr>
         {% endfor %}
     </table>

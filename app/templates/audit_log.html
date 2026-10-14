@@ -1,19 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Audit Log — Defensive Pentest Scanner{% endblock %}
 {% block content %}
-<h1>Audit log</h1>
-<p class="muted">Immutable record of every target, verification, consent, authorization, and scan event. Last 500 entries.</p>
+<div class="page-header">
+    <div>
+        <div class="eyebrow">Accountability</div>
+        <h1>Audit log</h1>
+        <div class="muted">Immutable record of every target, verification, consent, authorization, and scan event. Last 500 entries.</div>
+    </div>
+</div>
 
+<div class="table-wrap">
 <table>
     <tr><th>Time (UTC)</th><th>Actor</th><th>Action</th><th>Target</th><th>Details</th></tr>
     {% for e in entries %}
     <tr>
         <td class="muted">{{ e.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
         <td>{{ e.actor }}</td>
-        <td>{{ e.action }}</td>
+        <td><span class="pill mono">{{ e.action }}</span></td>
         <td>{% if e.target_id %}<a href="/targets/{{ e.target_id }}">{{ e.target_id[:8] }}</a>{% endif %}</td>
         <td class="muted"><code>{{ e.details or "" }}</code></td>
     </tr>
     {% endfor %}
 </table>
+</div>
 {% endblock %}

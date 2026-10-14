@@ -1,54 +1,98 @@
 {% extends "base.html" %}
 {% block title %}Scan — {{ target.name }}{% endblock %}
 {% block content %}
-<h1>Scan: {{ target.name }}</h1>
-<p class="muted"><code>{{ target.value }}</code> · modules: {{ scan.modules | join(", ") }} · intensity: {{ scan.intensity }}</p>
-
-<div class="card">
-    {% include "_scan_status.html" %}
-
-    {% if scan.status.value in ("pending", "running") %}
-    <form method="post" action="/scans/{{ scan.id }}/cancel" style="margin-top:12px">
-        <button class="btn danger" type="submit">Cancel scan</button>
-    </form>
-    {% endif %}
-
+<div class="page-header">
+    <div>
+        <div class="eyebrow">Scan report</div>
+        <h1>{{ target.name }}</h1>
+        <div class="meta">
+            <code>{{ target.value }}</code>
+            {% for m in scan.modules %}<span class="pill">{{ m }}</span>{% endfor %}
+            <span class="pill">{{ scan.intensity }} intensity</span>
+            {% if scan.started_at %}<span class="pill">{{ scan.started_at.strftime("%Y-%m-%d %H:%M") }} UTC</span>{% endif %}
+        </div>
+    </div>
     {% if scan.status.value == "completed" %}
-    <div style="margin-top:12px">
+    <div style="display:flex; gap:8px">
         <a class="btn secondary" href="/scans/{{ scan.id }}/report.pdf">Export PDF</a>
         <a class="btn secondary" href="/scans/{{ scan.id }}/report.json">Export JSON</a>
     </div>
     {% endif %}
 </div>
 
+<div class="card">
+    {% include "_scan_status.html" %}
+    {% if scan.status.value in ("pending", "running") %}
+    <form method="post" action="/scans/{{ scan.id }}/cancel" style="margin-top:14px">
+        <button class="btn danger small" type="submit">Cancel scan</button>
+    </form>
+    {% endif %}
+</div>
+
 {% if findings %}
-<h2>Findings ({{ findings|length }})</h2>
-<table>
-    <tr><th>Severity</th><th>Category</th><th>Title</th><th>Affected asset</th></tr>
-    {% for f in findings %}
-    <tr>
-        <td><span class="badge {{ f.severity.value }}">{{ f.severity.value }}</span></td>
-        <td>{{ f.category.value }}</td>
-        <td>{{ f.title }}</td>
-        <td><code>{{ f.affected_asset }}</code></td>
-    </tr>
-    <tr>
-        <td colspan="4" style="padding-top:0; padding-bottom:16px; border-bottom:1px solid var(--border);">
-            <p style="margin:4px 0"><strong>Description:</strong> {{ f.description }}</p>
-            <p style="margin:4px 0"><strong>Remediation:</strong> {{ f.remediation }}</p>
-            {% if f.evidence %}
-            <details style="margin:4px 0" {% if f.severity.value in ("critical", "high") %}open{% endif %}>
-                <summary style="cursor:pointer"><strong>Evidence</strong></summary>
-                <pre style="white-space:pre-wrap; margin:6px 0 0">{{ f.evidence[:4000] }}</pre>
-            </details>
-            {% endif %}
-        </td>
-    </tr>
+{% set counts = {} %}
+{% for f in findings %}{% set _ = counts.update({f.severity.value: counts.get(f.severity.value, 0) + 1}) %}{% endfor %}
+
+<div class="stat-grid" style="margin-bottom:18px">
+    {% for sev in ["critical", "high", "medium", "low", "info"] %}
+    {% set n = counts.get(sev, 0) %}
+    <div class="stat {{ sev }} {{ 'zero' if n == 0 else '' }}"><div class="num">{{ n }}</div><div class="label">{{ sev }}</div></div>
     {% endfor %}
-</table>
+</div>
+
+<h2>Findings <span class="muted">({{ findings|length }})</span></h2>
+<div class="findings-toolbar" role="group" aria-label="Filter findings by severity">
+    {% for sev in ["critical", "high", "medium", "low", "info"] %}
+    {% if counts.get(sev) %}
+    <button type="button" class="filter-chip {{ sev }}" data-sev="{{ sev }}" aria-pressed="true">
+        <span class="dot"></span>{{ sev }} · {{ counts[sev] }}
+    </button>
+    {% endif %}
+    {% endfor %}
+    <span class="muted" style="margin-left:auto">Click a severity to show/hide it · click a finding to expand</span>
+</div>
+
+<div id="findings">
+    {% for f in findings %}
+    <details class="finding {{ f.severity.value }}" data-sev="{{ f.severity.value }}" {% if f.severity.value in ("critical", "high") %}open{% endif %}>
+        <summary>
+            <span><span class="badge {{ f.severity.value }}">{{ f.severity.value }}</span></span>
+            <span>
+                <div class="f-title">{{ f.title }}</div>
+                <div class="f-asset">{{ f.affected_asset }} · {{ f.category.value }}</div>
+            </span>
+            <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        </summary>
+        <div class="f-body">
+            <h4>Description</h4>
+            <p>{{ f.description }}</p>
+            <h4>Remediation</h4>
+            <p>{{ f.remediation }}</p>
+            {% if f.evidence %}
+            <h4>Evidence</h4>
+            <pre>{{ f.evidence[:4000] }}</pre>
+            {% endif %}
+        </div>
+    </details>
+    {% endfor %}
+</div>
+
+<script>
+    // Severity filter chips: purely presentational, toggles which findings are visible.
+    document.querySelectorAll(".filter-chip").forEach(function (chip) {
+        chip.addEventListener("click", function () {
+            var on = chip.getAttribute("aria-pressed") !== "true";
+            chip.setAttribute("aria-pressed", on ? "true" : "false");
+            chip.classList.toggle("off", !on);
+            document.querySelectorAll('.finding[data-sev="' + chip.dataset.sev + '"]').forEach(function (f) {
+                f.style.display = on ? "" : "none";
+            });
+        });
+    });
+</script>
 {% elif scan.status.value == "completed" %}
-<p class="muted">No findings were recorded for this scan.</p>
+<div class="card empty">No findings were recorded for this scan.</div>
 {% endif %}
 
-<p style="margin-top:20px"><a href="/targets/{{ target.id }}">← Back to {{ target.name }}</a></p>
+<p style="margin-top:24px"><a href="/targets/{{ target.id }}">← Back to {{ target.name }}</a></p>
 {% endblock %}

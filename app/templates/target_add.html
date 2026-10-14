@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Add Target — Defensive Pentest Scanner{% endblock %}
 {% block content %}
-<h1>Add target</h1>
-<p class="muted">Adding a target does not make it scannable. It still needs ownership verification, consent, and
-    (for third-party targets) a signed authorization document before any scan can run.</p>
+<div class="page-header">
+    <div>
+        <div class="eyebrow">Allow-list</div>
+        <h1>Add target</h1>
+    </div>
+</div>
+<div class="banner warn"><span>Adding a target does <strong>not</strong> make it scannable. It still needs ownership verification,
+    consent, and (for third-party targets) a signed authorization document before any scan can run.</span></div>
 
 <div class="card">
     <form method="post" action="/targets" enctype="application/x-www-form-urlencoded">
