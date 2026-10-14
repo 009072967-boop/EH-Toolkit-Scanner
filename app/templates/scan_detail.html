@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Scan — {{ target.name }}{% endblock %}
+{% block content %}
+<h1>Scan: {{ target.name }}</h1>
+<p class="muted"><code>{{ target.value }}</code> · modules: {{ scan.modules | join(", ") }} · intensity: {{ scan.intensity }}</p>
+
+<div class="card">
+    {% include "_scan_status.html" %}
+
+    {% if scan.status.value in ("pending", "running") %}
+    <form method="post" action="/scans/{{ scan.id }}/cancel" style="margin-top:12px">
+        <button class="btn danger" type="submit">Cancel scan</button>
+    </form>
+    {% endif %}
+
+    {% if scan.status.value == "completed" %}
+    <div style="margin-top:12px">
+        <a class="btn secondary" href="/scans/{{ scan.id }}/report.pdf">Export PDF</a>
+        <a class="btn secondary" href="/scans/{{ scan.id }}/report.json">Export JSON</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if findings %}
+<h2>Findings ({{ findings|length }})</h2>
+<table>
+    <tr><th>Severity</th><th>Category</th><th>Title</th><th>Affected asset</th></tr>
+    {% for f in findings %}
+    <tr>
+        <td><span class="badge {{ f.severity.value }}">{{ f.severity.value }}</span></td>
+        <td>{{ f.category.value }}</td>
+        <td>{{ f.title }}</td>
+        <td><code>{{ f.affected_asset }}</code></td>
+    </tr>
+    <tr>
+        <td colspan="4" style="padding-top:0; padding-bottom:16px; border-bottom:1px solid var(--border);">
+            <p style="margin:4px 0"><strong>Description:</strong> {{ f.description }}</p>
+            <p style="margin:4px 0"><strong>Remediation:</strong> {{ f.remediation }}</p>
+            {% if f.evidence %}<p style="margin:4px 0"><strong>Evidence:</strong> <code>{{ f.evidence[:300] }}</code></p>{% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% elif scan.status.value == "completed" %}
+<p class="muted">No findings were recorded for this scan.</p>
+{% endif %}
+
+<p style="margin-top:20px"><a href="/targets/{{ target.id }}">← Back to {{ target.name }}</a></p>
+{% endblock %}

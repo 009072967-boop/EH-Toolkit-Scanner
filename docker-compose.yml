@@ -1,0 +1,15 @@
+services:
+  scanner:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    # NET_RAW/NET_ADMIN let nmap use SYN scans (-sS) instead of falling back
+    # to a full TCP connect scan. Not strictly required — remove this if you'd
+    # rather not grant extra capabilities to the container.
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN

@@ -1,0 +1,23 @@
+{% if scan.status.value in ("pending", "running") %}
+<div hx-get="/scans/{{ scan.id }}/status" hx-trigger="load delay:2s" hx-swap="outerHTML">
+    <span class="badge {{ scan.status.value }}">{{ scan.status.value }}</span>
+    <span class="muted">Scanning in progress — this refreshes automatically.</span>
+</div>
+{% else %}
+<div>
+    <span class="badge {{ scan.status.value }}">{{ scan.status.value }}</span>
+    {% if scan.error_message %}<div class="banner {{ 'warn' if scan.status.value == 'completed' else 'bad' }}" style="margin-top:10px">{{ scan.error_message }}</div>{% endif %}
+</div>
+<script>
+    // Status has reached a terminal state — reload once to render the full findings table.
+    // sessionStorage (not a window var) survives the reload's full navigation, so this
+    // doesn't fire again on the next load and loop forever.
+    (function () {
+        var key = "scanReloaded:{{ scan.id }}";
+        if (!sessionStorage.getItem(key)) {
+            sessionStorage.setItem(key, "1");
+            window.location.reload();
+        }
+    })();
+</script>
+{% endif %}

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}{{ target.name }} — Defensive Pentest Scanner{% endblock %}
+{% block content %}
+<h1>{{ target.name }}</h1>
+<p class="muted"><code>{{ target.value }}</code> · {{ target.target_type.value }} ·
+    {{ "Third-party (Tier 2)" if target.tier.value == "third_party" else "Self-owned (Tier 1)" }}</p>
+
+{% if message %}<div class="banner ok">{{ message }}</div>{% endif %}
+{% if error %}<div class="banner bad">{{ error }}</div>{% endif %}
+
+{% if allowed %}
+<div class="banner ok">This target is verified, consented, and {{ "has a current authorization document" if target.tier.value == "third_party" else "" }} on file. Scans may be launched below.</div>
+{% else %}
+<div class="banner warn">Not scannable yet: {{ block_reason }}</div>
+{% endif %}
+
+<h2>1. Ownership verification</h2>
+<div class="card">
+    <p>Status: <span class="badge {{ target.verification_status.value }}">{{ target.verification_status.value }}</span>
+        {% if target.verified_at %}<span class="muted">on {{ target.verified_at.strftime("%Y-%m-%d %H:%M UTC") }} via {{ target.verification_method.value }}</span>{% endif %}
+    </p>
+
+    {% if target.verification_status.value != "verified" %}
+        {% if target.target_type.value in ("domain", "hostname") %}
+        <p class="muted">Prove you control this domain by publishing one of the following, then click verify.</p>
+        <p><strong>DNS TXT record</strong> — publish at <code>_pentest-verify.{{ target.value }}</code>:</p>
+        <pre>{{ well_known_prefix }}{{ target.verification_token }}</pre>
+        <form method="post" action="/targets/{{ target.id }}/verify/domain" style="display:inline">
+            <input type="hidden" name="method" value="dns_txt">
+            <button class="btn secondary" type="submit">Verify via DNS TXT</button>
+        </form>
+
+        <p style="margin-top:16px"><strong>Or a well-known file</strong> at
+            <code>https://{{ target.value }}/.well-known/pentest-scanner-verification.txt</code> containing exactly:</p>
+        <pre>{{ target.verification_token }}</pre>
+        <form method="post" action="/targets/{{ target.id }}/verify/domain" style="display:inline">
+            <input type="hidden" name="method" value="well_known_file">
+            <button class="btn secondary" type="submit">Verify via file</button>
+        </form>
+        {% else %}
+        <p class="muted">IP/IP-range targets are typically your own infrastructure (home network, homelab). Confirm
+            ownership by self-attestation — this is logged with a timestamp.</p>
+        <form method="post" action="/targets/{{ target.id }}/verify/self-attest">
+            <div class="checkbox-row">
+                <input type="checkbox" name="confirm" value="true" id="confirm-own" required>
+                <label for="confirm-own" style="margin:0">I own or directly control this IP/IP range.</label>
+            </div>
+            <button class="btn secondary" type="submit" style="margin-top:10px">Confirm ownership</button>
+        </form>
+        {% endif %}
+    {% endif %}
+</div>
+
+<h2>2. Consent / legal attestation</h2>
+<div class="card">
+    {% if target.has_consent %}
+    <p><span class="badge verified">recorded</span>
+        <span class="muted">by {{ target.consents[-1].accepted_by }} on {{ target.consents[-1].accepted_at.strftime("%Y-%m-%d %H:%M UTC") }}</span></p>
+    {% else %}
+    <form method="post" action="/targets/{{ target.id }}/consent">
+        <p>"{{ consent_text }}"</p>
+        <div class="field">
+            <label>Your name</label>
+            <input name="accepted_by" value="{{ operator_name }}" required>
+        </div>
+        <div class="checkbox-row">
+            <input type="checkbox" name="confirm" value="true" id="confirm-consent" required>
+            <label for="confirm-consent" style="margin:0">I agree to the statement above.</label>
+        </div>
+        <button class="btn secondary" type="submit" style="margin-top:10px">Record consent</button>
+    </form>
+    {% endif %}
+</div>
+
+{% if target.tier.value == "third_party" %}
+<h2>3. Signed authorization document (Tier 2, required)</h2>
+<div class="card">
+    {% set active = target.active_authorization() %}
+    {% if active %}
+    <p><span class="badge active">active</span>
+        authorized by {{ active.authorizer_name }} ({{ active.authorizer_role }}), window
+        {{ active.window_start.strftime("%Y-%m-%d") }} to {{ active.window_end.strftime("%Y-%m-%d") }}.</p>
+    {% else %}
+    <p class="muted">No active authorization on file. This app cannot verify a signature is genuine — review any
+        uploaded document yourself before relying on it.</p>
+    {% endif %}
+
+    {% if target.authorizations %}
+    <table>
+        <tr><th>Authorizer</th><th>Window</th><th>Status</th><th>Uploaded</th></tr>
+        {% for doc in target.authorizations|sort(attribute="uploaded_at", reverse=True) %}
+        <tr>
+            <td>{{ doc.authorizer_name }}</td>
+            <td>{{ doc.window_start.strftime("%Y-%m-%d") }} → {{ doc.window_end.strftime("%Y-%m-%d") }}</td>
+            <td><span class="badge {{ doc.status.value }}">{{ doc.status.value }}</span></td>
+            <td class="muted">{{ doc.uploaded_at.strftime("%Y-%m-%d") }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    <details style="margin-top:14px">
+        <summary style="cursor:pointer">Upload {{ "a new" if active else "a" }} authorization document</summary>
+        <form method="post" action="/targets/{{ target.id }}/authorization" enctype="multipart/form-data" style="margin-top:12px">
+            <div class="row">
+                <div class="field"><label>Authorizer name</label><input name="authorizer_name" required></div>
+                <div class="field"><label>Authorizer role</label><input name="authorizer_role" placeholder="e.g. CTO, IT Director" required></div>
+            </div>
+            <div class="field"><label>Authorizer contact (email/phone)</label><input name="authorizer_contact" required></div>
+            <div class="field"><label>Scope description</label><textarea name="scope_description" rows="2" placeholder="Exact hosts/domains/IP ranges this authorization covers" required></textarea></div>
+            <div class="field"><label>Authorized scan types / intensity</label><input name="authorized_scan_types" placeholder="e.g. network + web app, standard intensity only" required></div>
+            <div class="row">
+                <div class="field"><label>Window start</label><input type="date" name="window_start" required></div>
+                <div class="field"><label>Window end</label><input type="date" name="window_end" required></div>
+            </div>
+            <div class="field"><label>Signed document (PDF/image/docx)</label><input type="file" name="file" required></div>
+            <button class="btn secondary" type="submit">Upload authorization document</button>
+        </form>
+    </details>
+</div>
+{% endif %}
+
+<h2>{{ "4" if target.tier.value == "third_party" else "3" }}. Launch a scan</h2>
+<div class="card">
+    <div class="banner {{ 'ok' if allowed else 'bad' }}">
+        Scans may only be run against verified, authorized targets. This target is currently
+        <strong>{{ "scannable" if allowed else "NOT scannable" }}</strong>
+        ({{ "Tier 2 — third-party, authorization required" if target.tier.value == "third_party" else "Tier 1 — self-owned" }}).
+    </div>
+    {% if allowed %}
+    <form method="post" action="/targets/{{ target.id }}/scans" enctype="multipart/form-data">
+        <div class="field">
+            <label>Modules</label>
+            {% if target.target_type.value in ("ip", "ip_range", "domain", "hostname") %}
+            <div class="checkbox-row"><input type="checkbox" name="modules" value="network" id="m-net"><label for="m-net" style="margin:0">Network / port scan (nmap)</label></div>
+            {% endif %}
+            {% if target.target_type.value in ("domain", "hostname") %}
+            <div class="checkbox-row"><input type="checkbox" name="modules" value="webapp" id="m-web"><label for="m-web" style="margin:0">Web application scan</label></div>
+            {% endif %}
+            <div class="checkbox-row"><input type="checkbox" name="modules" value="dependency" id="m-dep"><label for="m-dep" style="margin:0">Dependency / CVE scan (upload manifest below)</label></div>
+        </div>
+        <div class="field">
+            <label>Dependency manifest (only used if the module above is selected)</label>
+            <input type="file" name="manifest_file" accept=".json,.txt,.mod">
+        </div>
+        <div class="field">
+            <label>Intensity</label>
+            <select name="intensity">
+                <option value="standard">Standard (non-destructive, default)</option>
+                <option value="aggressive">Aggressive (faster timing, full port range — opt-in)</option>
+            </select>
+        </div>
+        <button class="btn" type="submit">Launch scan</button>
+    </form>
+    {% else %}
+    <p class="muted">Complete verification{{ ", consent," if not target.has_consent else "" }}{{ " and upload an authorization document" if target.tier.value == "third_party" and not target.active_authorization() else "" }} above to unlock scanning.</p>
+    {% endif %}
+</div>
+
+<h2>Scan history</h2>
+<div class="card">
+    {% if target.scan_runs %}
+    <table>
+        <tr><th>Modules</th><th>Status</th><th>Started</th><th></th></tr>
+        {% for scan in target.scan_runs|sort(attribute="created_at", reverse=True) %}
+        <tr>
+            <td>{{ scan.modules | join(", ") }}</td>
+            <td><span class="badge {{ scan.status.value }}">{{ scan.status.value }}</span></td>
+            <td class="muted">{{ scan.started_at.strftime("%Y-%m-%d %H:%M") if scan.started_at else "queued" }}</td>
+            <td><a class="btn secondary" href="/scans/{{ scan.id }}">View</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">No scans run against this target yet.</p>
+    {% endif %}
+</div>
+
+<form method="post" action="/targets/{{ target.id }}/delete" onsubmit="return confirm('Delete this target and all its scan history? This cannot be undone.');">
+    <button class="btn danger" type="submit">Delete target</button>
+</form>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Add Target — Defensive Pentest Scanner{% endblock %}
+{% block content %}
+<h1>Add target</h1>
+<p class="muted">Adding a target does not make it scannable. It still needs ownership verification, consent, and
+    (for third-party targets) a signed authorization document before any scan can run.</p>
+
+<div class="card">
+    <form method="post" action="/targets" enctype="application/x-www-form-urlencoded">
+        <div class="field">
+            <label>Name</label>
+            <input name="name" placeholder="e.g. Marketing site, Home lab, Client X web app" required>
+        </div>
+        <div class="row">
+            <div class="field">
+                <label>Target type</label>
+                <select name="target_type" required>
+                    <option value="domain">Domain (e.g. example.com — for web app scanning)</option>
+                    <option value="hostname">Hostname</option>
+                    <option value="ip">Single IP</option>
+                    <option value="ip_range">IP range / CIDR (network scanning)</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Value</label>
+                <input name="value" placeholder="example.com or 192.168.1.0/24" required>
+            </div>
+        </div>
+        <div class="field">
+            <label>Ownership tier</label>
+            <select name="tier" required>
+                <option value="self_owned">Self-owned / controlled — I own or directly control this</option>
+                <option value="third_party">Third-party — I have (or will provide) written authorization</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Notes (optional)</label>
+            <textarea name="notes" rows="3"></textarea>
+        </div>
+        <button class="btn" type="submit">Add target</button>
+    </form>
+</div>
+{% endblock %}

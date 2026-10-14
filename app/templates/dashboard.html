@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Defensive Pentest Scanner{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="muted">{{ target_count }} target(s) on file, {{ scannable_count }} currently scannable.</p>
+
+<div class="banner">
+    Scans may only be run against verified, allow-listed targets — self-owned infrastructure with ownership
+    verification on file, or third-party infrastructure with a current signed authorization document. See
+    <a href="/audit">the audit log</a> for a full history.
+</div>
+
+<div class="card">
+    <h2 style="margin-top:0">Findings across recent completed scans</h2>
+    {% if severity_counts %}
+    <div class="row">
+        {% for sev in ["critical", "high", "medium", "low", "info"] %}
+        <div>
+            <span class="badge {{ sev }}">{{ sev }}</span>
+            <div style="font-size:24px; margin-top:6px;">{{ severity_counts.get(sev, 0) }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">No completed scans yet.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2 style="margin-top:0">Recent scans</h2>
+    {% if recent_scans %}
+    <table>
+        <tr><th>Target</th><th>Modules</th><th>Status</th><th>Started</th><th></th></tr>
+        {% for scan in recent_scans %}
+        <tr>
+            <td>{{ scan.target.name }}</td>
+            <td>{{ scan.modules | join(", ") }}</td>
+            <td><span class="badge {{ scan.status.value }}">{{ scan.status.value }}</span></td>
+            <td class="muted">{{ scan.started_at.strftime("%Y-%m-%d %H:%M") if scan.started_at else "—" }}</td>
+            <td><a class="btn secondary" href="/scans/{{ scan.id }}">View</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p class="muted">No scans have been run yet.</p>
+    {% endif %}
+</div>
+
+<a class="btn" href="/targets">Manage targets →</a>
+{% endblock %}
