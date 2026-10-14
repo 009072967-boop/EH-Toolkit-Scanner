@@ -20,11 +20,15 @@ from app.database import SessionLocal
 from app.config import settings
 from app.models import Finding, ScanModule, ScanRun, ScanStatus, Target
 from app.scanning.common import RawFinding, ScanEngineError
+from app.scanning.cve_lookup import NvdClient
 from app.scanning.dependency import run_dependency_scan
 from app.scanning.network import run_network_scan
 from app.scanning.webapp_scan import run_webapp_scan
 from app.security import hash_results
 from app.services.audit import log as audit_log
+
+# One shared NVD client per process so concurrent scans share its rate limiting and cache.
+_nvd = NvdClient(api_key=settings.nvd_api_key)
 
 # Tracks scan runs that have been asked to cancel. Best-effort: engines check
 # this between discrete steps, but a single long-running nmap/httpx call
@@ -110,7 +114,13 @@ def execute_scan(scan_run_id: str, dependency_manifest: tuple[str, str] | None =
 
             try:
                 if module == ScanModule.NETWORK.value:
-                    raw = run_network_scan(target.value, intensity=scan_run.intensity, timeout_seconds=settings.scan_timeout_seconds)
+                    raw = run_network_scan(
+                        target.value,
+                        intensity=scan_run.intensity,
+                        timeout_seconds=settings.scan_timeout_seconds,
+                        cve_lookup=_nvd.lookup if settings.cve_lookup_enabled else None,
+                        max_cve_lookups=settings.max_cve_lookups_per_scan,
+                    )
                     _persist_findings(db, scan_run.id, ScanModule.NETWORK, raw)
                     all_results[module] = [rf.__dict__ for rf in raw]
                 elif module == ScanModule.DEPENDENCY.value:

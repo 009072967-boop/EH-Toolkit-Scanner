@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models import ScanModule, ScanRun, ScanStatus, Target
+from app.models import SEVERITY_RANK, ScanModule, ScanRun, ScanStatus, Target
 from app.scanning.orchestrator import execute_scan, request_cancel
 from app.services.audit import log as audit_log
 from app.services.report import build_json_report, build_pdf_report
@@ -72,7 +72,9 @@ def scan_detail(request: Request, scan_id: str, db: Session = Depends(get_db)):
     scan_run = db.get(ScanRun, scan_id)
     if scan_run is None:
         raise HTTPException(404, "Scan not found")
-    findings = sorted(scan_run.findings, key=lambda f: (f.severity.value != "critical", f.severity.value))
+    # Explicit rank: sorting on the enum's string value put "info" ahead of "low" and "medium"
+    # (alphabetical), burying real findings under informational ones.
+    findings = sorted(scan_run.findings, key=lambda f: (SEVERITY_RANK[f.severity], f.title))
     return templates.TemplateResponse(
         "scan_detail.html",
         {"request": request, "scan": scan_run, "target": scan_run.target, "findings": findings},

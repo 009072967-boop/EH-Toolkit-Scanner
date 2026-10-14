@@ -4,6 +4,7 @@ same ScanRun/Finding data so the two formats never drift apart.
 """
 
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER
@@ -12,6 +13,14 @@ from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.models import ScanRun
+
+
+def _pdf_text(value) -> str:
+    """ReportLab Paragraphs parse their text as markup, so scan output containing '<', '>' or
+    '&' (script output, CVE summaries, banners) would break PDF generation or render as tags.
+    Escape it, and keep line breaks (evidence is multi-line)."""
+    return escape(str(value)).replace("\n", "<br/>")
+
 
 _SEVERITY_ORDER = ["critical", "high", "medium", "low", "info"]
 _SEVERITY_COLORS = {
@@ -124,7 +133,7 @@ def build_pdf_report(scan_run: ScanRun) -> bytes:
                 textColor=_SEVERITY_COLORS.get(f.severity.value, colors.black),
             )
             story.append(Spacer(1, 10))
-            story.append(Paragraph(f"[{sev}] {f.title}", sev_style))
+            story.append(Paragraph(f"[{sev}] {_pdf_text(f.title)}", sev_style))
             table_data = [
                 ["Category", f.category.value],
                 ["Affected asset", f.affected_asset],
@@ -132,9 +141,9 @@ def build_pdf_report(scan_run: ScanRun) -> bytes:
                 ["Remediation", f.remediation],
             ]
             if f.evidence:
-                table_data.append(["Evidence", f.evidence[:500]])
+                table_data.append(["Evidence", f.evidence[:2000]])
             table = Table(
-                [[Paragraph(k, body), Paragraph(str(v), body)] for k, v in table_data],
+                [[Paragraph(k, body), Paragraph(_pdf_text(v), body)] for k, v in table_data],
                 colWidths=[1.3 * inch, 4.7 * inch],
             )
             table.setStyle(

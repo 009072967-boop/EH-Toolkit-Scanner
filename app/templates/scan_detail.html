@@ -36,7 +36,12 @@
         <td colspan="4" style="padding-top:0; padding-bottom:16px; border-bottom:1px solid var(--border);">
             <p style="margin:4px 0"><strong>Description:</strong> {{ f.description }}</p>
             <p style="margin:4px 0"><strong>Remediation:</strong> {{ f.remediation }}</p>
-            {% if f.evidence %}<p style="margin:4px 0"><strong>Evidence:</strong> <code>{{ f.evidence[:300] }}</code></p>{% endif %}
+            {% if f.evidence %}
+            <details style="margin:4px 0" {% if f.severity.value in ("critical", "high") %}open{% endif %}>
+                <summary style="cursor:pointer"><strong>Evidence</strong></summary>
+                <pre style="white-space:pre-wrap; margin:6px 0 0">{{ f.evidence[:4000] }}</pre>
+            </details>
+            {% endif %}
         </td>
     </tr>
     {% endfor %}

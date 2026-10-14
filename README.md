@@ -91,6 +91,34 @@ app/
    automatically once the window expires.
 5. Once the target shows "scannable," launch a scan and pick modules.
 
+## What the network scan reports
+
+Beyond open ports, a network scan now interprets what it finds:
+
+- **Service and version on every port** (e.g. `Open port 8080/tcp: http — Apache httpd 2.4.49`), with
+  Windows' dynamic RPC ports (49152+) grouped into one finding instead of a row each.
+- **Known CVEs for detected versions**, looked up in the [NVD](https://nvd.nist.gov/) by the CPE nmap
+  reports. Actively exploited CVEs (CISA KEV) are ranked first and raise the finding to Critical. Only
+  the product/version is sent to NVD, never anything about the target. Set `NVD_API_KEY` in `.env`
+  (free) for faster lookups; `CVE_LOOKUP_ENABLED=false` turns it off.
+- **Configuration checks from nmap's safe scripts**: SMBv1 and SMB signing, RDP without NLA, weak SSH
+  algorithms, anonymous FTP, risky HTTP methods, missing security headers, permissive CORS, possible
+  open proxies, expired/placeholder TLS certificates, and anything a `vuln and safe` script reports as
+  vulnerable (aggressive intensity only).
+- **Risk rules for ~25 commonly abused services** (Telnet, RDP, SMB, exposed databases, Docker API,
+  Redis, VNC, SNMP, ...), falling back on the well-known port when nmap can't name the service.
+
+Only nmap's `safe` script category (plus a short list of named safe checks) is ever used: nothing
+intrusive, brute-force, DoS, or exploit-based. OS detection needs Administrator/root; without it the
+scan says so and carries on.
+
+## Tests
+
+```bash
+pip install -r requirements.txt
+pytest
+```
+
 ## Data retention
 
 By default scan results are kept forever. Set `RETENTION_DAYS` in `.env` to auto-purge old scan runs;

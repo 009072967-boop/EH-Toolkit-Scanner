@@ -76,6 +76,10 @@ class Severity(str, enum.Enum):
     INFO = "info"
 
 
+# Most to least severe -- use this for ordering, never the enum's string value.
+SEVERITY_RANK = {severity: i for i, severity in enumerate(Severity)}
+
+
 class Target(Base):
     __tablename__ = "targets"
 

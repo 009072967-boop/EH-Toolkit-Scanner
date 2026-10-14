@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     scan_timeout_seconds: int = 900
     nmap_default_ports: str = "top-1000"
 
+    # Known-CVE lookup for detected service versions (NVD CVE API 2.0). Only the product and
+    # version string are sent to NVD -- never anything about the target itself. An API key
+    # (free, https://nvd.nist.gov/developers/request-an-api-key) raises NVD's rate limit
+    # from 5 to 50 requests per 30 s; without one, lookups are spaced 6 s apart.
+    cve_lookup_enabled: bool = True
+    nvd_api_key: str = ""
+    max_cve_lookups_per_scan: int = 10
+
     @property
     def data_dir(self) -> Path:
         return Path(self.database_url.replace("sqlite:///", "")).parent
