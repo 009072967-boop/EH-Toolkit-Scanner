@@ -9,6 +9,17 @@ target that hasn't completed ownership verification, consent, and (for third-par
 authorization document upload. Read `app/models.py`'s `Target.is_scannable()` and `PRD.md`'s
 "Scope, authorization, and legal guardrails" section before pointing this at anything.
 
+## Screenshots
+
+Taken with fictional demo data (a private lab address, `staging.example.com`, and the documentation-only
+`203.0.113.0/28` range).
+
+![Scan report: a critical known-CVE finding expanded with remediation and evidence](docs/screenshots/scan-report.jpg)
+
+| Dashboard | Targets allow-list |
+| --- | --- |
+| ![Dashboard with severity totals and recent scans](docs/screenshots/dashboard.jpg) | ![Targets list showing ready and blocked targets](docs/screenshots/targets.jpg) |
+
 ## Requirements
 
 - Python 3.11+
@@ -35,7 +46,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 uvicorn app.main:app --reload
 ```
 
-Open http://localhost:8000.
+Open http://localhost:8000 (use `--port 8002` or another free port if 8000 is taken).
 
 Network scans that use SYN scanning (`-sS`, nmap's default when available) need elevated privileges.
 If you see permission errors from nmap, either run the app with the privileges nmap needs, or note
